@@ -4,6 +4,7 @@
 // of their health (core::PhaseByHealth), and their defeat.
 #include "session.hpp"
 
+#include <gamelib/ai/opponent.hpp>
 #include <gamelib/core/collision.hpp>
 
 #include <algorithm>
@@ -58,13 +59,6 @@ float _hoverY(const Boss& b)
     }
 }
 
-Vec2 _lob(const Vec2 from, const Vec2 to, const float gravity, const int ticks)
-{
-    const auto t = static_cast<float>(ticks);
-    const Vec2 d = to - from;
-    const float vy = (d.y - gravity * t * (t + 1.0f) / 2.0f) / t;
-    return {std::clamp(d.x / t, -3.2f, 3.2f), std::clamp(vy, -7.0f, 0.0f)};
-}
 
 } // namespace
 
@@ -436,7 +430,7 @@ void Session::stepThorn(Boss& b)
             const Vec2 from = me + Vec2{0.0f, -14.0f};
             for (int i = 0; i < count; ++i) {
                 const float offset = (static_cast<float>(i) - static_cast<float>(count - 1) / 2.0f) * 30.0f;
-                bossFire(b, from, _lob(from, {hero.x + offset, b.home.y - 4.0f}, 0.2f, 46), 5, 3, 0.2f);
+                bossFire(b, from, gamelib::ai::lobVelocity(from, {hero.x + offset, b.home.y - 4.0f}, 0.2f, 46, {3.2f, 7.0f}), 5, 3, 0.2f);
             }
         }
         if (b.sm.after(54)) {
@@ -489,7 +483,7 @@ void Session::stepCinder(Boss& b)
         const Vec2 from = me + Vec2{0.0f, -12.0f};
         Shot s;
         s.position = from;
-        s.velocity = _lob(from, {hero.x, b.home.y - 6.0f}, 0.2f, 44);
+        s.velocity = gamelib::ai::lobVelocity(from, {hero.x, b.home.y - 6.0f}, 0.2f, 44, {3.2f, 7.0f});
         s.gravity = 0.2f;
         s.size = {12.0f, 12.0f};
         s.team = 1;

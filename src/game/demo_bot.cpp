@@ -96,34 +96,16 @@ void DemoBot::prepare(const Session& session)
         const gamelib::core::TileId id = layer.at(c);
         return id == 'D' || (world.shapeAt(c) != gamelib::core::TileShape::Solid && id != '^' && id != '~');
     };
-    // The way into the next room: its open cells beside this room.
-    std::vector<Cell> starts;
     if (!last) {
-        for (int y = next.min.y; y <= next.max.y; ++y) {
-            for (int x = next.min.x; x <= next.max.x; ++x) {
-                const Cell c{x, y};
-                bool beside = false;
-                for (const Cell d : gamelib::core::neighborOffsets(gamelib::core::Neighbors::Four)) {
-                    beside = beside || here.cells.contains(c + d);
-                }
-                if (beside && open(c)) {
-                    starts.push_back(c);
-                }
-            }
-        }
+        m_distance = gamelib::core::roomExitDistances(layer, here.cells, next, open);
+        return;
     }
-    if (starts.empty()) {
-        // The last room: its middle, on the floor.
-        starts.push_back({(here.cells.min.x + here.cells.max.x) / 2, here.cells.max.y - 4});
-    }
-    m_distance = gamelib::core::floodFill(layer, std::span<const Cell>{starts}, gamelib::core::Neighbors::Four,
-                                          [&](const Cell c) {
-                                              const bool inside = here.cells.contains(c) || (!last && next.contains(c));
-                                              return inside && open(c) ? gamelib::core::Reach::Spread
-                                                                       : gamelib::core::Reach::Blocked;
-                                          });
+    // The last room: towards its middle, on the floor.
+    const Cell goal{(here.cells.min.x + here.cells.max.x) / 2, here.cells.max.y - 4};
+    m_distance = gamelib::core::floodFill(layer, goal, gamelib::core::Neighbors::Four, [&](const Cell c) {
+        return here.cells.contains(c) && open(c) ? gamelib::core::Reach::Spread : gamelib::core::Reach::Blocked;
+    });
 }
-
 float DemoBot::distanceAt(const Session& session, const Vec2 point) const
 {
     (void)session;

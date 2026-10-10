@@ -3,6 +3,7 @@
 // hero's shots against them (shields deflect) and contact damage.
 #include "session.hpp"
 
+#include <gamelib/ai/opponent.hpp>
 #include <gamelib/core/collision.hpp>
 
 #include <algorithm>
@@ -66,14 +67,6 @@ int _sign(const float v)
     return v < 0.0f ? -1 : 1;
 }
 
-// The launch velocity that lands a lob of `gravity` on `to` after `ticks`.
-Vec2 _lob(const Vec2 from, const Vec2 to, const float gravity, const int ticks)
-{
-    const auto t = static_cast<float>(ticks);
-    const Vec2 d = to - from;
-    const float vy = (d.y - gravity * t * (t + 1.0f) / 2.0f) / t;
-    return {std::clamp(d.x / t, -3.0f, 3.0f), std::clamp(vy, -6.5f, 0.0f)};
-}
 
 } // namespace
 
@@ -325,7 +318,7 @@ void Session::stepEnemy(Enemy& e)
             const Vec2 from = me + Vec2{0.0f, -10.0f};
             Shot s;
             s.position = from;
-            s.velocity = _lob(from, m_hero.body.box.bottomCenter() + Vec2{0.0f, -6.0f}, kGravity, 48);
+            s.velocity = gamelib::ai::lobVelocity(from, m_hero.body.box.bottomCenter() + Vec2{0.0f, -6.0f}, kGravity, 48, {3.0f, 6.5f});
             s.gravity = kGravity;
             s.size = {10.0f, 10.0f};
             s.team = 1;

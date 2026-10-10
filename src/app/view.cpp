@@ -465,7 +465,8 @@ void StageView::drawWarnings(gamelib::draw::DrawList& list, const game::Session&
     list.setLayer(gamelib::draw::layers::Effects - 5);
     const Rect room = session.room().bounds;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(session.ticks()) * 0.6f);
-    for (const game::Session::Warning& w : session.warnings()) {
+    for (const auto& item : session.warnings()) {
+        const game::Session::Warning& w = item.value;
         Color c = w.kind == 0 ? srgb(0xFFF080) : (w.kind == 1 ? srgb(0x9AFF6A) : srgb(0xC8F0FF));
         if (w.kind == 3) {
             c = srgb(0xFF8A6A);

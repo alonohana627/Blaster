@@ -10,9 +10,6 @@
 #include <gamelib/platform/actions.hpp>
 #include <gamelib/platform/input.hpp>
 
-#include <string>
-#include <string_view>
-
 namespace blaster::app {
 
 enum class Action : std::uint8_t { Left, Right, Up, Down, Jump, Shoot, Slide, WeaponPrev, WeaponNext, Pause, Count };
@@ -27,10 +24,6 @@ enum class Action : std::uint8_t { Left, Right, Up, Down, Jump, Shoot, Slide, We
 
 // The rules' input for this tick from the held and pressed actions.
 [[nodiscard]] game::Input readInput(const gamelib::platform::ActionMap& actions, const gamelib::platform::InputState& input);
-
-// "{jump}" and the other action names in braces replaced by the action's
-// first key ("Z"), for the teaching hints.
-[[nodiscard]] std::string withKeys(std::string_view text, const gamelib::platform::ActionMap& actions);
 
 // The action a key or button is bound to (Action::Count when none).
 [[nodiscard]] Action actionOf(const gamelib::platform::ActionMap& actions, gamelib::platform::Key key);

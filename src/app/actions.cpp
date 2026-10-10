@@ -1,6 +1,5 @@
 #include "actions.hpp"
 
-#include <optional>
 
 namespace blaster::app {
 
@@ -55,46 +54,6 @@ game::Input readInput(const gamelib::platform::ActionMap& actions, const gamelib
     in.weaponPrev = pressed(Action::WeaponPrev);
     in.weaponNext = !in.weaponPrev && pressed(Action::WeaponNext);
     return in;
-}
-
-std::string withKeys(const std::string_view text, const gamelib::platform::ActionMap& actions)
-{
-    std::string out;
-    std::size_t i = 0;
-    while (i < text.size()) {
-        const std::size_t open = text.find('{', i);
-        if (open == std::string_view::npos) {
-            out += text.substr(i);
-            break;
-        }
-        const std::size_t close = text.find('}', open);
-        if (close == std::string_view::npos) {
-            out += text.substr(i);
-            break;
-        }
-        out += text.substr(i, open - i);
-        const std::string_view name = text.substr(open + 1, close - open - 1);
-        std::string label = "?";
-        if (const std::optional<ActionId> id = actions.find(name)) {
-            // The first default key still bound to it (Z for jump, not K), else any key it has.
-            std::optional<Key> shown;
-            for (const Key k : actions.info(*id).keys) {
-                if (!shown && actions.actionOn(k) == *id) {
-                    shown = k;
-                }
-            }
-            const std::vector<Key> keys = actions.keysOf(*id);
-            if (!shown && !keys.empty()) {
-                shown = keys.front();
-            }
-            if (shown) {
-                label = std::string{gamelib::platform::keyLabel(*shown)};
-            }
-        }
-        out += "[" + label + "]";
-        i = close + 1;
-    }
-    return out;
 }
 
 Action actionOf(const gamelib::platform::ActionMap& actions, const Key key)

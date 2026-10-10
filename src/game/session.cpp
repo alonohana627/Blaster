@@ -716,16 +716,13 @@ void Session::dropPickup(const Vec2 at)
 
 void Session::warn(const Vec2 at, const int ticks, const int kind)
 {
-    m_warnings.push_back({.at = at, .ticks = ticks, .kind = kind});
+    m_warnings.add({.at = at, .kind = kind}, ticks);
 }
 
 void Session::stepWarnings()
 {
     const Rect r = room().bounds;
-    std::erase_if(m_warnings, [&](Warning& w) {
-        if (--w.ticks > 0) {
-            return false;
-        }
+    for (const Warning& w : m_warnings.tick()) {
         Shot shot;
         shot.team = 1;
         shot.owner = 100;
@@ -760,10 +757,8 @@ void Session::stepWarnings()
         }
         m_shots.spawn(shot);
         m_events.push({.kind = EventKind::Strike, .at = w.at, .value = w.kind});
-        return true;
-    });
+    }
 }
-
 void Session::stepShots()
 {
     // Homing wings and feathers turn towards their targets.

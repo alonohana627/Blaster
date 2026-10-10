@@ -29,6 +29,7 @@
 #include <gamelib/core/slot_map.hpp>
 #include <gamelib/core/spawner.hpp>
 #include <gamelib/core/state_machine.hpp>
+#include <gamelib/core/telegraphs.hpp>
 #include <gamelib/core/tile_collision.hpp>
 #include <gamelib/core/tile_map.hpp>
 #include <gamelib/core/world_graph.hpp>
@@ -300,10 +301,9 @@ public:
     // how many ticks are left.
     struct Warning {
         gamelib::core::Vec2 at;
-        int ticks = 0;
         int kind = 0; // 0 lightning, 1 thorn, 2 icicle, 3 debris
     };
-    [[nodiscard]] std::span<const Warning> warnings() const { return m_warnings; }
+    [[nodiscard]] std::span<const gamelib::core::Telegraphs<Warning>::Item> warnings() const { return m_warnings.items(); }
     [[nodiscard]] int enemiesDestroyed() const { return m_destroyed; }
 
     [[nodiscard]] gamelib::core::EventQueue<Event>& events() { return m_events; }
@@ -382,7 +382,7 @@ private:
     std::vector<Boss> m_bosses;
     std::vector<Checkpoint> m_checkpoints;
     std::vector<Door> m_doors;
-    std::vector<Warning> m_warnings;
+    gamelib::core::Telegraphs<Warning> m_warnings;
     gamelib::core::Rng m_rng;
     Phase m_phase = Phase::Ready;
     Outcome m_outcome = Outcome::None;

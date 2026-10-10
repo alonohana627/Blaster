@@ -138,6 +138,14 @@ BlasterGame::BlasterGame(gamelib::app::App& app, ProfileFile profile, const bool
     m_music.play(app.audio(), Tune::Title, 0.6f);
 }
 
+BlasterGame::~BlasterGame()
+{
+    if (m_session && m_mode == Mode::Stage) {
+        progress().tanks = m_session->tanks();
+    }
+    save();
+}
+
 void BlasterGame::save()
 {
     m_profile.save();

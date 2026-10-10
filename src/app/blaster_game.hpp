@@ -38,6 +38,10 @@ class BlasterGame final : public gamelib::app::Game {
 public:
     // demo: the demo plays full screen without the menu (--demo).
     BlasterGame(gamelib::app::App& app, ProfileFile profile, bool demo);
+    // Saves the profile (the play time, tanks picked up) when the window closes mid-stage.
+    ~BlasterGame() override;
+    BlasterGame(const BlasterGame&) = delete("owns the menus that point into its profile");
+    BlasterGame& operator=(const BlasterGame&) = delete("owns the menus that point into its profile");
 
     void onFocus(gamelib::app::App& app, bool focused) override;
     void onKey(gamelib::app::App& app, const gamelib::platform::KeyEvent& event) override;

@@ -327,11 +327,12 @@ StageDef fortress3Stage()
                 "#               ====      #",
                 "#                #        #",
                 "#                #    ====#",
-                "#                #        #",
+                "#  K             #        #",
                 "######################H####",
                 "######################H####",
                 "######################H####",
-            }},            // 2: the last checkpoint, two tanks
+            }},
+            // 2: the last checkpoint, two tanks
             {.attach = Attach::Up, .rows = {
                 "###########################",
                 "#                         #",

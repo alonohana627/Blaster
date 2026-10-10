@@ -11,6 +11,8 @@
 #include <gamelib/ui/panel.hpp>
 
 #include <algorithm>
+#include <cstdlib>
+#include <string_view>
 #include <array>
 #include <cmath>
 #include <numbers>
@@ -48,8 +50,10 @@ gamelib::ui::MenuStyle _menuStyle()
             .highlight = srgb(0xFFE14D),
             .selection = srgb(0x23305A),
             .dim = kTextDim,
-            .titlePixel = 13.0f,
-            .itemPixel = 6.0f,
+            .titlePixel = 11.0f,
+            .itemPixel = 5.0f,
+            .itemHeight = 60.0f,
+            .padding = 44.0f,
             .glowWidth = 24.0f};
 }
 
@@ -265,13 +269,23 @@ void BlasterGame::handleResult(gamelib::app::App& app, const gamelib::app::Arcad
         if (result.from == ArcadeScreen::Paused) {
             // RESTART: the stage from its beginning.
             if (m_mode == Mode::Stage && m_session && !m_transition.active()) {
-                startStage(app, m_stage, game::Carry::fresh(m_lives, progress().tanks, progress().weapons()), false);
+                game::Carry again = m_stageStart;
+                again.lives = m_lives;
+                again.tanks = m_session->tanks();
+                startStage(app, m_stage, again, false);
             }
             break;
         }
         m_lives = game::kStartLives;
         m_gameOver = false;
-        if (m_devStage >= 0 && result.from == ArcadeScreen::Title) {
+        if (const char* scene = std::getenv("BLASTER_SCENE"); scene != nullptr && result.from == ArcadeScreen::Title) {
+            // Developer aid: straight to the weapon-get scene or the ending.
+            if (std::string_view{scene} == "ending") {
+                startEnding(app);
+            } else {
+                startWeaponGet(app, static_cast<game::BossKind>(std::clamp(std::atoi(scene), 0, game::kMasters - 1)));
+            }
+        } else if (m_devStage >= 0 && result.from == ArcadeScreen::Title) {
             startStage(app, static_cast<game::StageId>(m_devStage), game::Carry::fresh(m_lives, progress().tanks, 0x3F), true);
         } else if (!progress().introCleared) {
             startStage(app, game::StageId::Intro, game::Carry::fresh(m_lives, progress().tanks, progress().weapons()), true);
@@ -470,6 +484,9 @@ void BlasterGame::enterSelect(gamelib::app::App& app)
 void BlasterGame::startStage(gamelib::app::App& app, const game::StageId stage, const game::Carry& carry, const bool fromSelect)
 {
     m_stage = stage;
+    if (fromSelect) {
+        m_stageStart = carry; // what RESTART starts from
+    }
     const game::StageDef& def = game::stage(stage);
     std::string line;
     if (def.boss != game::BossKind::Count) {
@@ -909,18 +926,19 @@ void BlasterGame::drawHud(gamelib::draw::DrawList& list, const game::Session& se
                                     {.background = srgb(0x07060F, 0.9f), .filled = c.trim, .empty = srgb(0x2A2F45),
                                      .gap = 3.0f, .inset = 4.0f, .cornerRadius = 1.5f,
                                      .from = gamelib::ui::FillFrom::Bottom});
-        list.text(std::string{game::weaponInfo(hero.weapon).shortName}, 117.0f, 404.0f,
+        list.text(std::string{game::weaponInfo(hero.weapon).shortName}, 117.0f, 398.0f,
                   {.pixelSize = 3.0f, .color = c.trim, .align = gamelib::draw::Align::Center, .shadow = true});
     }
-    // Lives and tanks.
-    list.add({.rect = {48.0f, 420.0f, 52.0f, 52.0f}, .color = heroColors(hero.weapon).main, .color2 = heroColors(hero.weapon).trim,
+    // Lives and tanks, on a dark plate so they read on any backdrop.
+    list.box({40.0f, 426.0f, 112.0f, session.tanks() > 0 ? 120.0f : 64.0f}, Color{0.02f, 0.02f, 0.06f, 0.55f}, {.cornerRadius = 10.0f});
+    list.add({.rect = {48.0f, 432.0f, 52.0f, 52.0f}, .color = heroColors(hero.weapon).main, .color2 = heroColors(hero.weapon).trim,
               .shape = m_shapes.item, .params = {4.0f, 0.0f, 0.0f, 2.0f}, .scale = 3.4f});
-    list.text("x" + std::to_string(std::max(session.lives(), 0)), 104.0f, 434.0f,
+    list.text("x" + std::to_string(std::max(session.lives(), 0)), 104.0f, 446.0f,
               {.pixelSize = 4.0f, .color = kText, .shadow = true});
     if (session.tanks() > 0) {
-        list.add({.rect = {52.0f, 480.0f, 46.0f, 46.0f}, .color = srgb(0x2F7BFF), .color2 = srgb(0x6FE0FF), .shape = m_shapes.item,
+        list.add({.rect = {52.0f, 492.0f, 46.0f, 46.0f}, .color = srgb(0x2F7BFF), .color2 = srgb(0x6FE0FF), .shape = m_shapes.item,
                   .params = {5.0f, 0.0f, 0.0f, 2.0f}, .scale = 2.8f});
-        list.text("x" + std::to_string(session.tanks()), 104.0f, 492.0f, {.pixelSize = 4.0f, .color = kText, .shadow = true});
+        list.text("x" + std::to_string(session.tanks()), 104.0f, 504.0f, {.pixelSize = 4.0f, .color = kText, .shadow = true});
     }
     // The boss's bar, top right.
     if (const game::Boss* boss = session.activeBoss(); boss != nullptr && !boss->sm.is(game::BossState::Dead)) {
@@ -972,8 +990,8 @@ void BlasterGame::drawSelect(gamelib::draw::DrawList& list, const float time) co
                   .borderColor = selected ? srgb(0xFFE14D) : srgb(0x3A4A86), .glowWidth = selected ? 18.0f + 10.0f * pulse : 0.0f,
                   .glowColor = srgb(0xFFE14D, 0.5f)});
         list.box(Rect::fromCenter(c + Vec2{0.0f, -16.0f}, {300.0f, 190.0f}),
-                 themePalette(game::stage(game::stageOf(boss)).theme)[Role::SkyLow].scaled(0.55f), {.cornerRadius = 10.0f});
-        StageView::drawBoss(list, m_shapes, c + Vec2{0.0f, -16.0f}, boss, 1, selected ? 1 : 0, 2.8f, beaten ? 0.45f : 1.0f);
+                 themePalette(game::stage(game::stageOf(boss)).theme)[Role::SkyTop].scaled(0.8f), {.cornerRadius = 10.0f});
+        StageView::drawBoss(list, m_shapes, c + Vec2{0.0f, -14.0f}, boss, 1, selected ? 1 : 0, 3.4f, beaten ? 0.45f : 1.0f);
         list.text(std::string{game::bossName(boss)}, c.x, c.y + 96.0f,
                   {.pixelSize = 4.0f, .color = beaten ? kTextDim : bc.trim, .align = gamelib::draw::Align::Center, .shadow = true});
         if (beaten) {
@@ -1010,7 +1028,7 @@ void BlasterGame::drawWeapons(gamelib::draw::DrawList& list) const
     const std::vector<int> rows = weaponRows();
     const float w = static_cast<float>(m_canvas.width);
     const float rowH = 74.0f;
-    const float height = 150.0f + rowH * static_cast<float>(rows.size());
+    const float height = 230.0f + rowH * static_cast<float>(rows.size());
     const Rect panel = Rect::fromCenter({w / 2.0f, 540.0f}, {980.0f, height});
     list.box({0.0f, 0.0f, w, static_cast<float>(m_canvas.height)}, Color{0.0f, 0.0f, 0.03f, 0.55f});
     list.box(panel, srgb(0x12132A, 0.97f), {.cornerRadius = 22.0f, .borderWidth = 4.0f, .borderColor = srgb(0x5FE0FF),
@@ -1064,7 +1082,8 @@ void BlasterGame::drawWeaponGet(gamelib::draw::DrawList& list, const float time)
     // Rays turning behind the hero.
     for (int i = 0; i < 12; ++i) {
         const float a = static_cast<float>(i) * kPi / 6.0f + time * 0.2f;
-        list.box(Rect::fromCenter({w / 2.0f, 520.0f}, {1600.0f, 40.0f}), c.trim.withAlpha(0.06f + 0.06f * m_sceneFlash), {}, a);
+        list.box(Rect::fromCenter({w / 2.0f, 520.0f}, {2200.0f, 18.0f}), c.trim.withAlpha(0.08f + 0.12f * m_sceneFlash),
+                 {.glowWidth = 14.0f, .glowColor = c.trim.withAlpha(0.06f + 0.08f * m_sceneFlash)}, a);
     }
     list.setLayer(gamelib::draw::layers::Entities);
     // The hero takes on the new colors: flickering between the old and the new.
@@ -1188,7 +1207,6 @@ void BlasterGame::drawMenus(gamelib::draw::DrawList& list) const
         if (m_session && m_mode == Mode::Stage) {
             subtitle = std::string{m_session->def().name};
         }
-        footer = "WEAPONS: SWITCH AND USE TANKS   EXIT STAGE: BACK TO THE SELECT";
     }
     gamelib::ui::drawMenu(list, *menu, m_canvas, _menuStyle(), subtitle, footer);
 }

@@ -280,16 +280,15 @@ vec4 near(vec2 px, vec2 world, int theme, float time, vec3 col, vec3 light)
         c = mix(c, light * (0.8 + 0.6 * flow), lava);
         a = max(a, lava);
     } else if (theme == 6) {
-        // Floating islands under pillars.
+        // Floating islands of rock.
         float cw = 420.0;
         float cell = floor(x / cw);
         float r = hash1(cell);
         vec2 center = vec2((cell + 0.5) * cw, ground - 200.0 - r * 120.0 + 10.0 * sin(time * 0.6 + r * 6.0));
         vec2 d = vec2(x, world.y) - center;
         float island = max(sdEllipse(d, vec2(110.0, 30.0)), -d.y - 4.0);
-        float bottom = sdEllipse(d - vec2(0.0, 6.0), vec2(80.0 - d.y * 0.3, 70.0));
-        float pillar = max(abs(d.x) - 16.0, max(-d.y - 120.0, d.y));
-        a = coverage(min(min(island, max(bottom, -d.y)), pillar));
+        float rock = max(max(abs(d.x) - (95.0 - d.y * 1.1), -d.y), d.y - 85.0);
+        a = coverage(min(island, rock));
         c = mix(col, light, coverage(max(island, -(d.y + 2.0))) * 0.5);
     }
     return vec4(c, a);

@@ -106,6 +106,8 @@ bot's distance map points through a ceiling (close the gap under it).
 - `BLASTER_REPLAY=<file>`: a recording (`core::InputRecording` text, the
   six-character inputs of `rules.hpp`) drives the stage started with
   `BLASTER_START_LEVEL`. These are GameLib's `app::readDevStart("BLASTER")`.
+- `BLASTER_SCENE=N` (0-5) or `ending`: PLAY goes straight to robot master
+  N's weapon-get scene or to the ending, to look at them.
 - `--demo`: the demo bot plays the intro full screen. `--keep-running`: the
   game keeps running without focus, for screenshot scripts.
 - F3 shows hitboxes and the session's state.

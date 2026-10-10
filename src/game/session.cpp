@@ -248,6 +248,10 @@ void Session::debugStartAt(const int room, const int column)
         if ((below == TileShape::Solid || below == TileShape::OneWay) && world.shapeAt({x, y - 1}) == TileShape::Empty) {
             placeHero(m_map.cellBottom({x, y - 1}), room);
             enterRoom(room);
+            if (const int boss = m_rooms[static_cast<std::size_t>(room)].boss;
+                boss >= 0 && m_bosses[static_cast<std::size_t>(boss)].sm.is(BossState::Waiting)) {
+                startBossIntro(boss); // straight into the fight
+            }
             return;
         }
     }

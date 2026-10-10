@@ -113,6 +113,7 @@ private:
     // The stage being played.
     std::optional<game::Session> m_session;
     game::StageId m_stage = game::StageId::Intro;
+    game::Carry m_stageStart; // the carry the stage was entered with
     int m_lives = game::kStartLives;
     StageView m_view;
     Effects m_effects;

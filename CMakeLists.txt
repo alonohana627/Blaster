@@ -1,4 +1,7 @@
-﻿# Blaster - a game built on GameLib.
+# Blaster - an action platformer campaign in the spirit of the 8-bit robot
+# shooters, built on GameLib: an intro stage, six robot masters in any order,
+# their weapons, a three-stage fortress and an ending; every visual a shader,
+# every sound synthesized, a deterministic fixed-tick simulation.
 cmake_minimum_required(VERSION 3.28)
 
 # C is enabled too because GameLib's dependencies (GLFW, miniaudio) are C.
@@ -25,16 +28,21 @@ FetchContent_Declare(GameLib
     GIT_SHALLOW    FALSE)  # a shallow clone cannot check out an arbitrary commit
 FetchContent_MakeAvailable(GameLib)
 
-add_executable(blaster src/main.cpp)
-target_link_libraries(blaster PRIVATE GameLib::app GameLib::fx)
-gamelib_target_warnings(blaster)
-gamelib_copy_runtime(blaster)
-# The game's own procedural shapes, embedded as SPIR-V.
-gamelib_add_shaders(blaster SHADERS shaders/orb.frag)
+# Print the GameLib revision being built against, for bug reports and for the
+# known-good combination recorded in docs/GAMELIB_REVISION.md.
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" -C "${gamelib_SOURCE_DIR}" rev-parse --short HEAD
+                    OUTPUT_VARIABLE _gamelib_revision OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    message(STATUS "Blaster: using GameLib ${_gamelib_revision} from ${gamelib_SOURCE_DIR}")
+endif()
+
+add_subdirectory(src)
 
 # Smoke test: launch, render 120 frames with the validation layer required,
 # exit cleanly. Exit code 77 (no Vulkan GPU) counts as skipped. The profile
-# file goes to the build folder, not the player's.
+# file goes to the build folder, not the player's. Blaster has no other
+# tests (see AGENTS.md).
 enable_testing()
 gamelib_validation_layer_dir(_layer_dir)
 add_test(NAME blaster_smoke COMMAND blaster --hidden --require-validation --frames 120)

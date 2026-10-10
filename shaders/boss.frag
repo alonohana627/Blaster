@@ -180,7 +180,7 @@ void main()
         part(sdSegment(q, vec2(2.0, 7.0), vec2(2.0, 11.0), 1.0), vec3(1.0, 0.8, 0.3));
     } else {
         // THE OVERSEER: a wall-mounted machine skull around a great red eye.
-        q = vec2(p.x, p.y); // always faces the room
+        q = p * 0.74; // always faces the room; drawn a third larger than the masters
         for (int i = 0; i < 3; ++i) {
             float y = -18.0 + 18.0 * float(i);
             part(sdRoundBox(q - vec2(24.0, y), vec2(8.0, 3.0), 1.4), body * 0.7); // pipes into the wall

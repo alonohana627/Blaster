@@ -141,7 +141,7 @@ ShotLook _shotLook(const game::Shot& s)
     case 2: return {12.0f, srgb(0xFF8AB0), srgb(0xFF3A6A), 4.0f, {11.0f, 11.0f}};
     case 3: return {13.0f, srgb(0xFFFAD0), srgb(0xFFE14D), 5.0f, {10.0f, 10.0f}};
     case 4: return {14.0f, srgb(0xE8FCFF), srgb(0x6FD0FF), 3.0f, {s.size.y + 2.0f, 8.0f}};
-    case 5: return {15.0f, srgb(0x8AD84A), srgb(0x3A7A2A), 2.0f, {10.0f, 10.0f}};
+    case 5: return {15.0f, srgb(0x8AD84A), srgb(0x3A7A2A), 2.0f, {15.0f, 15.0f}};
     case 6: return {16.0f, srgb(0xFFB030), srgb(0xFF4A1A), 5.0f, {s.size.x + 2.0f, s.size.y + 2.0f}};
     case 7: return {17.0f, srgb(0xF8FCFF), srgb(0x9AD0FF), 3.0f, {12.0f, 6.0f}};
     case 8: return {18.0f, srgb(0xFF8A9A), srgb(0xFF2A3A), 8.0f, s.size};
@@ -443,7 +443,7 @@ void StageView::drawBosses(gamelib::draw::DrawList& list, const Shapes& shapes, 
     }
     const HeroColors c = bossColors(boss->kind);
     const float margin = 8.0f;
-    const Vec2 size = boss->kind == game::BossKind::Overseer ? Vec2{80.0f, 80.0f} : Vec2{50.0f, 50.0f};
+    const Vec2 size = boss->kind == game::BossKind::Overseer ? Vec2{96.0f, 96.0f} : Vec2{50.0f, 50.0f};
     list.add({.rect = Rect::fromCenter(box.center(), size + Vec2{2.0f * margin, 2.0f * margin}), .color = c.main, .color2 = c.trim,
               .shape = shapes.boss,
               .params = {static_cast<float>(boss->kind), static_cast<float>(boss->body.direction), static_cast<float>(pose), margin},

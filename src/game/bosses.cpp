@@ -32,7 +32,7 @@ Vec2 _bossSize(const BossKind kind)
     case BossKind::Thorn: return {30.0f, 32.0f};
     case BossKind::Cinder: return {28.0f, 28.0f};
     case BossKind::Gale: return {30.0f, 24.0f};
-    case BossKind::Overseer: return {56.0f, 64.0f};
+    case BossKind::Overseer: return {64.0f, 76.0f};
     case BossKind::Count: break;
     }
     return {28.0f, 28.0f};
@@ -641,8 +641,9 @@ void Session::stepOverseer(Boss& b)
     switch (b.sm.current()) {
     case BossState::Idle:
         if (b.sm.after(44 - 8 * phase)) {
-            b.pattern = gamelib::core::nextPattern(m_rng, 1 + std::min(phase, 1) + (phase >= 2 ? 1 : 0), b.pattern);
-            b.sm.enter(b.pattern == 0 ? BossState::Attack : (b.pattern == 1 ? BossState::Attack2 : BossState::Attack3));
+            // Orbs and debris from the start, the laser from half health.
+            b.pattern = gamelib::core::nextPattern(m_rng, phase >= 1 ? 3 : 2, b.pattern);
+            b.sm.enter(b.pattern == 0 ? BossState::Attack : (b.pattern == 1 ? BossState::Attack3 : BossState::Attack2));
             b.count = m_rng.range(0, 1); // the laser: 0 low (jump it), 1 high (slide under it)
         }
         break;
@@ -676,7 +677,7 @@ void Session::stepOverseer(Boss& b)
         }
         break;
     }
-    case BossState::Attack3: // debris from the ceiling and two drones
+    case BossState::Attack3: // debris from the ceiling (and two drones below a quarter)
         if (b.sm.ticksIn() == 6) {
             for (int i = 0; i < 4; ++i) {
                 const float x = r.bounds.left() + 2.0f * kTile
@@ -684,7 +685,7 @@ void Session::stepOverseer(Boss& b)
                 warn({x, b.home.y}, 44 + 8 * i, 3);
             }
         }
-        if (b.sm.ticksIn() == 30) {
+        if (b.sm.ticksIn() == 30 && phase >= 2) {
             for (const float dy : {-24.0f, 24.0f}) {
                 Enemy d;
                 d.kind = EnemyKind::Drone;

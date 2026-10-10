@@ -185,7 +185,7 @@ vec4 far(vec2 px, vec2 world, int theme, float time, vec3 col, vec3 light)
             }
         }
         h = min(h, horizon - 60.0);
-        detailA = smoothstep(0.6, 0.9, valueNoise(world / 22.0)) * 0.35;
+        detailA = smoothstep(0.6, 0.9, valueNoise(world / 22.0)) * 0.12;
         detail = light;
     } else if (theme == 6) {
         // Cloud banks.

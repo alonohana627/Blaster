@@ -511,8 +511,17 @@ void Session::scrollTick()
         return;
     }
     const int to = m_scroll->to;
+    const bool up = m_scroll->side == gamelib::core::Direction::Up;
     m_scroll.reset();
     enterRoom(to);
+    // Coming up through the floor of a room: hold on to the ladder there.
+    gamelib::core::PlatformerBody& body = m_hero.body;
+    if (up && !body.climbing && gamelib::core::probeContacts(body.box, tileWorld()).climb != gamelib::core::TileShape::Empty) {
+        body.climbing = true;
+        body.velocity = {};
+        const float column = std::floor(body.box.center().x / kTile);
+        body.box.x = (column + 0.5f) * kTile - body.box.width / 2.0f;
+    }
     m_phaseTicks = 0;
     if (m_phase == Phase::Gate) {
         m_gateStep = 3;
@@ -623,7 +632,7 @@ void Session::stepPlatforms()
         if (p.falling) {
             const bool ridden = standing && m_hero.body.ridingId == p.id;
             const gamelib::core::FallingPlatform::Step step =
-                p.drop.step(ridden, {.delayTicks = 24, .acceleration = 0.18f, .maxSpeed = 5.0f});
+                p.drop.step(ridden, {.delayTicks = 40, .acceleration = 0.18f, .maxSpeed = 5.0f});
             p.box = p.drop.box;
             p.delta = step.delta;
         } else {

@@ -11,8 +11,14 @@ add_library(blaster_game STATIC
     rules.cpp
     session.cpp
     stages.cpp
+    stages_factory.cpp
+    stages_forest.cpp
+    stages_fortress.cpp
+    stages_ice.cpp
     stages_intro.cpp
-    stages_placeholder.cpp
+    stages_magma.cpp
+    stages_sky.cpp
+    stages_storm.cpp
     weapons.cpp)
 target_include_directories(blaster_game PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(blaster_game PUBLIC GameLib::core GameLib::ai)

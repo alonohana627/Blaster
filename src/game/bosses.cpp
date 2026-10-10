@@ -51,8 +51,8 @@ int _sign(const float v)
 float _hoverY(const Boss& b)
 {
     switch (b.kind) {
-    case BossKind::Storm: return b.home.y - 5.0f * kTile;
-    case BossKind::Gale: return b.home.y - 7.0f * kTile;
+    case BossKind::Storm: return b.home.y - 2.5f * kTile; // low enough for a jumping shot
+    case BossKind::Gale: return b.home.y - 4.0f * kTile;
     case BossKind::Overseer: return b.home.y - 1.5f * kTile;
     default: return b.home.y;
     }

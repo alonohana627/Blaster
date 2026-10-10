@@ -2,6 +2,7 @@
 
 #include <gamelib/core/grid_search.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <vector>
@@ -45,6 +46,41 @@ constexpr std::array<Plan, 22> kGroundPlans = [] {
 constexpr std::array<Plan, 4> kLadderPlans{{
     {.move = 0, .climb = -1}, {.move = 0, .climb = 1}, {.move = 1, .jumpTicks = 1}, {.move = -1, .jumpTicks = 1},
 }};
+// Whether the hero stands on a platform that drops (keep walking: it will fall).
+bool _onFallingPlatform(const Session& session)
+{
+    const int id = session.hero().body.ridingId;
+    for (const Platform& p : session.platforms()) {
+        if (p.id == id && p.falling) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Whether something to shoot is in line ahead: enemies at the hero's height,
+// and a boss also from a jump.
+bool _hasTarget(const Session& session)
+{
+    const gamelib::core::PlatformerBody& body = session.hero().body;
+    if (body.sliding) {
+        return false;
+    }
+    const Vec2 me = body.box.center();
+    const auto inLine = [&](const gamelib::core::Rect& box, const float slack) {
+        const Vec2 c = box.center();
+        const float ahead = (c.x - me.x) * static_cast<float>(body.facing);
+        return std::abs(c.y - me.y) < slack + box.height / 2.0f && ahead > 0.0f && ahead < 230.0f;
+    };
+    for (const auto [handle, e] : session.enemies()) {
+        if (inLine(e.body.box, 10.0f)) {
+            return true;
+        }
+    }
+    const Boss* boss = session.activeBoss();
+    return boss != nullptr && !boss->sm.is(BossState::Dead) && inLine(boss->body.box, body.grounded ? 10.0f : 4.0f);
+}
+
 } // namespace
 
 void DemoBot::prepare(const Session& session)
@@ -123,6 +159,9 @@ Input DemoBot::next(const Session& session)
             int health = 0;
             bool airborne = false;
             bool settled = false;
+            int cooldown = 0;
+            int bossHp = 0;
+            int destroyed = 0;
         };
         const DemoBot& self = *this;
         const gamelib::ai::PlanRules<Trial, Plan> rules{
@@ -132,7 +171,7 @@ Input DemoBot::next(const Session& session)
                 const auto& body = trial.session.hero().body;
                 if (!body.grounded && !body.climbing) {
                     trial.airborne = true;
-                } else if ((plan.jumpTicks > 0 && trial.airborne) || (plan.jumpTicks == 0 && plan.walkTicks > 0 && t >= plan.walkTicks)) {
+                } else if (!_onFallingPlatform(trial.session) && ((plan.jumpTicks > 0 && trial.airborne) || (plan.jumpTicks == 0 && plan.walkTicks > 0 && t >= plan.walkTicks))) {
                     trial.settled = true;
                 }
                 in.move = trial.settled ? 0 : plan.move;
@@ -140,6 +179,12 @@ Input DemoBot::next(const Session& session)
                 in.jumpHeld = t >= plan.jumpDelay && t < plan.jumpDelay + plan.jumpTicks;
                 in.jumpPressed = t == plan.jumpDelay && plan.jumpTicks > 0;
                 in.slidePressed = t == 0 && plan.slide;
+                trial.cooldown = std::max(0, trial.cooldown - 1);
+                if (trial.cooldown == 0 && _hasTarget(trial.session)) {
+                    in.shootPressed = true;
+                    in.shootHeld = true;
+                    trial.cooldown = 9;
+                }
                 trial.session.tick(in);
                 (void)trial.session.events().take();
                 const auto tick = static_cast<float>(t);
@@ -159,13 +204,20 @@ Input DemoBot::next(const Session& session)
             },
             .rate = [&self](const Trial& trial, const Plan&) {
                 const Hero& h = trial.session.hero();
+                // Damage dealt counts: a boss's lost health most, destroyed enemies a little.
+                const Boss* boss = trial.session.activeBoss();
+                const float dealt = boss != nullptr ? static_cast<float>(trial.bossHp - std::max(boss->hp, 0)) * 60.0f : 0.0f;
+                const float kills = static_cast<float>(trial.session.enemiesDestroyed() - trial.destroyed) * 10.0f;
                 if (!h.body.grounded && !h.body.climbing && h.body.velocity.y > 0.5f) {
                     return -2e5f - h.body.box.y; // still falling after all this time: into a pit
                 }
                 const float d = self.distanceAt(trial.session, h.body.box.center());
-                return -d * kTile + (h.body.grounded || h.body.climbing ? 4.0f : 0.0f);
+                return -d * kTile + (h.body.grounded || h.body.climbing ? 4.0f : 0.0f) + dealt + kills;
             }};
-        const Trial start{.session = session, .room = session.roomIndex(), .health = hero.health.current};
+        const Boss* boss = session.activeBoss();
+        const Trial start{.session = session, .room = session.roomIndex(), .health = hero.health.current,
+                          .cooldown = m_shootCooldown, .bossHp = boss != nullptr ? boss->hp : 0,
+                          .destroyed = session.enemiesDestroyed()};
         std::optional<gamelib::ai::PlanChoice> choice;
         if (body.climbing) {
             choice = gamelib::ai::bestPlan(start, std::span<const Plan>{kLadderPlans}, rules, kHorizon, 1.0f);
@@ -192,24 +244,11 @@ Input DemoBot::next(const Session& session)
         m_left = 1; // finish the jump with the same direction, then look again on landing
     }
 
-    // Fire at anything in line ahead.
-    const Vec2 me = body.box.center();
-    bool target = false;
-    const auto inLine = [&](const gamelib::core::Rect& box) {
-        const Vec2 c = box.center();
-        const float ahead = (c.x - me.x) * static_cast<float>(body.facing);
-        return std::abs(c.y - me.y) < 14.0f + box.height / 2.0f && ahead > 0.0f && ahead < 230.0f;
-    };
-    for (const auto [handle, e] : session.enemies()) {
-        target = target || inLine(e.body.box);
-    }
-    if (const Boss* boss = session.activeBoss(); boss != nullptr) {
-        target = target || inLine(boss->body.box);
-    }
+    const bool target = _hasTarget(session);
     if (m_shootCooldown > 0) {
         --m_shootCooldown;
     }
-    if (target && m_shootCooldown == 0 && !hero.body.sliding) {
+    if (target && m_shootCooldown == 0) {
         input.shootPressed = true;
         input.shootHeld = true;
         m_shootCooldown = 9;

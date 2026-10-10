@@ -444,7 +444,11 @@ void Session::stepEnemy(Enemy& e)
             break;
         }
         const gamelib::core::WalkerStep step = gamelib::core::stepWalker(e.body, {.gravity = 0.25f, .maxFall = 6.0f}, world);
-        if (e.state == 3 && (step.contacts.blockedX || e.timer > 160)) {
+        // The guardian never leaves its room (a shutter or an open side).
+        const Rect inner = m_rooms[static_cast<std::size_t>(m_room)].bounds.expanded(-kTile);
+        const bool atSide = e.body.box.x <= inner.left() || e.body.box.right() >= inner.right();
+        e.body.box.x = std::clamp(e.body.box.x, inner.left(), inner.right() - e.body.box.width);
+        if (e.state == 3 && (step.contacts.blockedX || atSide || e.timer > 160)) {
             e.body.velocity.x = 0.0f;
             e.state = 0;
             e.timer = 0;

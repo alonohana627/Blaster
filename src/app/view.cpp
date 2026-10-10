@@ -264,15 +264,23 @@ void StageView::drawHints(gamelib::draw::DrawList& list, const game::Session& se
         const game::Room& room = session.rooms()[static_cast<std::size_t>(hint.room)];
         const Vec2 at = room.bounds.position() + hint.cell * kTile;
         const std::string text = withKeys(hint.text, *options.actions);
+        constexpr float kSize = 40.0f;
         if (!gamelib::draw::drawWorldText(list, view, m_canvas, at, text,
-                                          {.size = 34.0f, .color = Color{0.0f, 0.0f, 0.0f, 0.5f}, .weight = 1.6f,
+                                          {.size = kSize, .color = Color{0.0f, 0.0f, 0.0f, 0.5f}, .weight = 1.6f,
                                            .align = gamelib::draw::Align::Center},
                                           {2.0f, 3.0f})) {
             continue;
         }
         gamelib::draw::drawWorldText(list, view, m_canvas, at, text,
-                                     {.size = 34.0f, .color = srgb(0xFFF2C0, 0.95f), .weight = 1.2f,
+                                     {.size = kSize, .color = srgb(0xFFF2C0, 0.95f), .weight = 1.2f,
                                       .align = gamelib::draw::Align::Center});
+        // A soft plate behind the words (a layer below them), so they read over a busy backdrop.
+        const Vec2 c = view.toCanvas(at);
+        const float width = gamelib::draw::vectorTextWidth(text, kSize);
+        list.setLayer(gamelib::draw::layers::Parallax + 40);
+        list.box({c.x - width / 2.0f - 24.0f, c.y - 8.0f, width + 48.0f, kSize + 18.0f}, Color{0.02f, 0.03f, 0.08f, 0.75f},
+                 {.cornerRadius = 14.0f, .borderWidth = 2.0f, .borderColor = srgb(0xFFF2C0, 0.35f)});
+        list.setLayer(gamelib::draw::layers::Parallax + 50);
     }
 }
 

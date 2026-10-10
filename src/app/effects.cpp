@@ -88,9 +88,11 @@ void Effects::onEvent(const game::Event& e, const game::Theme theme)
     case EventKind::Deflect: m_sparks.burst(e.at, 3, srgb(0xC8D0E0), 0.2f); break;
     case EventKind::EnemyDown: {
         const bool big = e.value == 1;
-        m_rings.add(e.at, big ? 40.0f : 16.0f, srgb(0xFFD27A), big ? 0.6f : 0.35f);
-        m_flashes.add({.at = e.at, .color = srgb(0xFFF2C0), .size = big ? 26.0f : 12.0f}, 0.12f);
-        m_sparks.burst(e.at, big ? 12 : 6, srgb(0xFFB040), 0.35f);
+        m_rings.add(e.at, big ? 44.0f : 24.0f, srgb(0xFFD27A).scaled(1.3f), big ? 0.6f : 0.4f);
+        m_rings.add(e.at, big ? 24.0f : 12.0f, srgb(0xFFFFFF), 0.2f);
+        m_flashes.add({.at = e.at, .color = srgb(0xFFF2C0).scaled(1.4f), .size = big ? 28.0f : 15.0f}, 0.15f);
+        m_sparks.burst(e.at, big ? 12 : 8, srgb(0xFFB040).scaled(1.3f), 0.4f);
+        m_orbs.add({.at = e.at, .color = srgb(0xFFC060), .speed = big ? 40.0f : 26.0f}, 0.45f);
         m_debris.burst(e.at, big ? 18 : 7,
                        {.direction = {-kPi, 0.0f}, .speed = {50.0f, 140.0f}, .size = {1.5f, 3.0f}, .life = {0.4f, 0.8f},
                         .spin = {-8.0f, 8.0f}, .color = srgb(0x8A8E9C)});

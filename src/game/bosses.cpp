@@ -85,7 +85,7 @@ void Session::startBossIntro(const int index)
     b.sm.enter(BossState::Intro);
     m_phase = Phase::BossIntro;
     m_phaseTicks = 0;
-    m_hero.charge = 0;
+    m_hero.charge.reset();
     m_events.push({.kind = EventKind::BossIntro, .at = b.home, .boss = b.kind});
 }
 
@@ -208,7 +208,7 @@ void Session::bossDefeated(Boss& b)
     if (b.room == static_cast<int>(m_rooms.size()) - 1) {
         m_phase = Phase::BossDown;
         m_phaseTicks = 0;
-        m_hero.charge = 0;
+        m_hero.charge.reset();
         return;
     }
     // A rematch in the fortress: a refill for the next one.

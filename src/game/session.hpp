@@ -31,6 +31,7 @@
 #include <gamelib/core/state_machine.hpp>
 #include <gamelib/core/tile_collision.hpp>
 #include <gamelib/core/tile_map.hpp>
+#include <gamelib/core/world_graph.hpp>
 
 #include <array>
 #include <cstdint>
@@ -177,10 +178,8 @@ struct Hero {
     Weapon weapon = Weapon::Buster;
     std::array<gamelib::core::Resource, kWeaponCount> energy{};
     std::uint8_t weapons = 0;
-    bool sliding = false;
-    int slideTicks = 0;
     int shootTicks = 0; // the shooting pose (and the ladder hold)
-    int charge = 0;     // ticks the buster has been charging
+    gamelib::core::ChargeMeter charge{{kChargeHalfTicks, kChargeFullTicks}}; // the buster's charge
     float walked = 0.0f;
     int hurtTicks = 0;  // the hurt pose
 };
@@ -293,7 +292,7 @@ public:
     // The scroll in progress: 0..1 (also during a gate's scroll).
     [[nodiscard]] float scrollProgress() const;
     // The room a scroll is going to (the current room when none is under way).
-    [[nodiscard]] int scrollTarget() const { return m_phase == Phase::Scroll || (m_phase == Phase::Gate && m_gateStep == 2) ? m_scrollTo : m_room; }
+    [[nodiscard]] int scrollTarget() const { return m_scroll ? m_scroll->to : m_room; }
     [[nodiscard]] int ticks() const { return m_ticks; }
     // Seconds-free wind push of a windy room (units per tick, 0 when calm).
     [[nodiscard]] float wind() const { return m_wind; }
@@ -340,8 +339,6 @@ private:
     void fire(const Input& input);
     void releaseCharge();
     void switchWeapon(int step);
-    [[nodiscard]] bool canStand() const;
-    void endSlide();
 
     // enemies.cpp
     void spawnEnemy(int point);
@@ -394,11 +391,8 @@ private:
     int m_checkpoint = -1;
     int m_destroyed = 0;
     float m_wind = 0.0f;
-    // A scroll: the rooms and the hero's start and end.
-    int m_scrollFrom = 0;
-    int m_scrollTo = 0;
-    gamelib::core::Vec2 m_scrollHeroFrom;
-    gamelib::core::Vec2 m_scrollHeroTo;
+    std::optional<gamelib::core::RoomScroll> m_scroll; // the scroll into the next room, while it runs
+    std::vector<gamelib::core::Rect> m_roomBounds;
     // A gate: the door, its stage (0 opening, 1 walking, 2 scrolling, 3 closing).
     int m_gate = -1;
     int m_gateStep = 0;

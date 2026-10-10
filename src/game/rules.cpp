@@ -85,18 +85,10 @@ gamelib::core::PlatformerTuning heroTuning(const bool icy)
     t.climbSpeed = kClimbSpeed;
     t.climbJumpSpeed = {0.0f, 0.0f}; // jump on a ladder lets go
     t.hazardInset = 3.0f;
-    return t;
-}
-
-gamelib::core::PlatformerTuning slideTuning()
-{
-    gamelib::core::PlatformerTuning t = heroTuning(false);
-    t.maxSpeed = kSlideSpeed;
-    t.groundAccel = 10.0f;
-    t.groundDecel = 10.0f;
-    t.airAccel = 0.0f;
-    t.airDecel = 0.0f;
-    t.climbSpeed = 0.0f;
+    // The slide: a short box pushed along the floor, standing up only where it fits.
+    t.slideSpeed = kSlideSpeed;
+    t.slideTicks = kSlideTicks;
+    t.slideHeight = kSlideSize.y;
     return t;
 }
 

@@ -821,9 +821,9 @@ void BlasterGame::updateLoops(gamelib::app::App& app)
     float level = 0.0f;
     if (m_session && m_mode == Mode::Stage && m_menus.is(ArcadeScreen::Playing) && m_overlay == Overlay::None
         && m_session->phase() == game::Phase::Playing && m_session->hero().weapon == game::Weapon::Buster) {
-        const int charge = m_session->hero().charge;
-        charging = charge > game::kChargeHalfTicks / 2;
-        level = std::min(1.0f, static_cast<float>(charge) / static_cast<float>(game::kChargeFullTicks));
+        const gamelib::core::ChargeMeter& charge = m_session->hero().charge;
+        charging = charge.heldTicks() > game::kChargeHalfTicks / 2;
+        level = charge.progress();
     }
     if (charging) {
         m_sfx.loop(app.audio(), Sfx::Charge, 0.55f, 0.8f + 0.7f * level);

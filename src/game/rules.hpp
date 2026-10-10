@@ -83,9 +83,8 @@ struct Input {
 inline constexpr std::uint32_t kRulesVersion = 1;
 
 // The hero's movement: on the ground and in the air alike (a classic action
-// hero steers freely in the air), icy floors slow the start and the stop.
+// hero steers freely in the air), icy floors slow the start and the stop;
+// the slide under one-tile gaps.
 [[nodiscard]] gamelib::core::PlatformerTuning heroTuning(bool icy);
-// The slide: the same body pushed at kSlideSpeed in the facing direction.
-[[nodiscard]] gamelib::core::PlatformerTuning slideTuning();
 
 } // namespace blaster::game

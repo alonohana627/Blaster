@@ -39,21 +39,15 @@ namespace blaster::game {
 enum class Theme : std::uint8_t { Lab, Factory, Storm, Ice, Forest, Magma, Sky, Fortress, Count };
 inline constexpr int kThemeCount = static_cast<int>(Theme::Count);
 
-// Where a room goes, relative to the room before it.
-enum class Attach : std::uint8_t {
-    Right, // the same screen row, its left edge at the previous room's right edge
-    Up,    // one screen up
-    Down,  // one screen down
-};
-
-// Up and Down rooms line up their right edges with the previous room's
-// unless `column` says where their left edge goes (in the previous room's
-// columns).
-inline constexpr int kAlignRight = -1000;
+// Where a room goes, relative to the room before it (GameLib's room
+// chains): Right keeps the screen row, Up and Down line up the right edges
+// unless `column` says where the room's left edge goes in the previous
+// room's columns.
+using gamelib::core::Attach;
 
 struct RoomDef {
     Attach attach = Attach::Right;
-    int column = kAlignRight;
+    int column = gamelib::core::kAlignEnd;
     std::vector<std::string_view> rows; // 15 rows of one width, at least 27 columns
 };
 
@@ -102,11 +96,11 @@ inline constexpr int kFortressStages = 3;
 
 inline constexpr std::string_view kMarkerSymbols = "SKWMFchdwtngrlpfbm1234567EU$&";
 
-// A stage's rooms put together into one map: the rows (cells outside every
-// room are empty, so a pit's bottom is open) and each room's cells. Throws std::invalid_argument
-// naming the stage, the room and the row of a room with the wrong height,
-// a row of the wrong width, a room narrower than a screen or rooms that
-// overlap.
+// A stage's rooms put together into one map (GameLib's layoutRooms): the
+// rows (cells outside every room are empty, so a pit's bottom is open) and
+// each room's cells. Throws std::invalid_argument naming the stage, the
+// room and the row of a room with the wrong height, a row of the wrong
+// width, a room narrower than a screen or rooms that overlap.
 struct StageLayout {
     std::vector<std::string> rows;
     std::vector<gamelib::core::CellRange> rooms;

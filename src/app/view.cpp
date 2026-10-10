@@ -552,7 +552,7 @@ void StageView::drawHeroInStage(gamelib::draw::DrawList& list, const Shapes& sha
     float ph = 0.0f;
     if (hero.hurtTicks > 0) {
         pose = 5;
-    } else if (hero.sliding) {
+    } else if (hero.body.sliding) {
         pose = 4;
     } else if (hero.body.climbing) {
         pose = 3;
@@ -566,10 +566,10 @@ void StageView::drawHeroInStage(gamelib::draw::DrawList& list, const Shapes& sha
         pose = std::abs(hero.body.velocity.x) > 0.2f ? 1 : 0;
         ph = gamelib::fx::walkPhase(hero.walked, 26.0f);
     }
-    const float charge = hero.weapon == game::Weapon::Buster && hero.charge > game::kChargeHalfTicks / 2
-                             ? static_cast<float>(hero.charge) / static_cast<float>(game::kChargeFullTicks)
+    const float charge = hero.weapon == game::Weapon::Buster && hero.charge.heldTicks() > game::kChargeHalfTicks / 2
+                             ? hero.charge.progress()
                              : 0.0f;
-    draw(Rect::fromBottomCenter(feet + Vec2{0.0f, 3.0f}, drawSize + Vec2{6.0f, 6.0f}), pose, ph, hero.shootTicks > 0 && !hero.sliding,
+    draw(Rect::fromBottomCenter(feet + Vec2{0.0f, 3.0f}, drawSize + Vec2{6.0f, 6.0f}), pose, ph, hero.shootTicks > 0 && !hero.body.sliding,
          std::min(charge, 1.0f));
 }
 

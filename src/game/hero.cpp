@@ -1,7 +1,6 @@
-// The hero: GameLib's platformer controller plus the slide (a short box
-// pushed along the floor that stands up only where there is room), the
-// buster with its charge, the special weapons, shooting while hanging on a
-// ladder, conveyors, ice and wind.
+// The hero: GameLib's platformer controller (with its slide and ladders)
+// plus the buster and its charge (core::ChargeMeter), the special weapons,
+// shooting while hanging on a ladder, conveyors, ice and wind.
 #include "session.hpp"
 
 #include <gamelib/core/collision.hpp>
@@ -17,7 +16,6 @@ namespace {
 
 using gamelib::core::Cell;
 using gamelib::core::Rect;
-using gamelib::core::TileShape;
 using gamelib::core::Vec2;
 
 constexpr float kConveyorSpeed = 0.7f;
@@ -31,32 +29,6 @@ gamelib::core::TileId _floorTile(const gamelib::core::TileMap& map, const Rect& 
 }
 
 } // namespace
-
-bool Session::canStand() const
-{
-    const Rect full = Rect::fromBottomCenter(m_hero.body.box.bottomCenter(), kHeroSize);
-    const gamelib::core::TileWorld world = tileWorld();
-    const gamelib::core::CellRange cells = gamelib::core::cellsOverlapping(full, kTile);
-    for (int y = cells.min.y; y <= cells.max.y; ++y) {
-        for (int x = cells.min.x; x <= cells.max.x; ++x) {
-            if (world.shapeAt({x, y}) == TileShape::Solid) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
-void Session::endSlide()
-{
-    Hero& h = m_hero;
-    if (!h.sliding) {
-        return;
-    }
-    h.sliding = false;
-    h.slideTicks = 0;
-    h.body.box = Rect::fromBottomCenter(h.body.box.bottomCenter(), kHeroSize);
-}
 
 void Session::switchWeapon(const int step)
 {
@@ -93,62 +65,32 @@ void Session::stepHero(const Input& input)
         }
     }
 
-    // Down + jump (or the slide button) on the ground starts a slide.
-    const bool slideAsked = in.slidePressed || (in.climb > 0 && in.jumpPressed);
-    const bool startSlide = slideAsked && body.grounded && !body.climbing && !h.sliding;
-    if (startSlide) {
-        h.sliding = true;
-        h.slideTicks = kSlideTicks;
+    // Down + jump (or the slide button) slides; the controller does the rest.
+    const bool slideAsked = in.slidePressed || (in.climb > 0 && in.jumpPressed && body.grounded && !body.climbing);
+    gamelib::core::PlatformerIntent intent{.move = static_cast<float>(in.move),
+                                           .climb = static_cast<float>(in.climb),
+                                           .jumpPressed = in.jumpPressed && !slideAsked,
+                                           .jumpHeld = in.jumpHeld,
+                                           .slidePressed = slideAsked};
+    if (body.climbing) {
         if (in.move != 0) {
-            body.facing = in.move;
+            body.facing = in.move; // turn on the ladder to shoot the other way
         }
-        body.box = Rect::fromBottomCenter(body.box.bottomCenter(), kSlideSize);
-        m_events.push({.kind = EventKind::Slide, .at = body.box.bottomCenter(), .value = body.facing});
+        if (h.shootTicks > 0) {
+            intent.climb = 0.0f; // hanging still while shooting
+        }
     }
-
     const float xBefore = body.box.x;
-    gamelib::core::PlatformerStep step;
-    if (h.sliding) {
-        if (in.move != 0 && in.move != body.facing && !startSlide) {
-            body.facing = in.move; // turning round mid-slide
-        }
-        const bool room = canStand();
-        const gamelib::core::PlatformerIntent intent{.move = static_cast<float>(body.facing),
-                                                     .jumpPressed = in.jumpPressed && !startSlide && room,
-                                                     .jumpHeld = in.jumpHeld};
-        if (intent.jumpPressed) {
-            endSlide();
-            step = gamelib::core::stepPlatformer(body, intent, heroTuning(false), world, platforms);
-        } else {
-            step = gamelib::core::stepPlatformer(body, intent, slideTuning(), world, platforms);
-            --h.slideTicks;
-            if (!body.grounded || ((h.slideTicks <= 0 || step.contacts.blockedX) && canStand())) {
-                endSlide();
-            } else if (step.contacts.blockedX) {
-                body.facing = -body.facing; // stuck under a ceiling against a wall: slide back out
-            }
-        }
-    } else {
-        gamelib::core::PlatformerIntent intent{.move = static_cast<float>(in.move),
-                                               .climb = static_cast<float>(in.climb),
-                                               .jumpPressed = in.jumpPressed && !slideAsked,
-                                               .jumpHeld = in.jumpHeld};
-        if (body.climbing) {
-            if (in.move != 0) {
-                body.facing = in.move; // turn on the ladder to shoot the other way
-            }
-            if (h.shootTicks > 0) {
-                intent.climb = 0.0f; // hanging still while shooting
-            }
-        }
-        const bool icy = body.grounded && _floorTile(m_map, body.box) == 'I';
-        step = gamelib::core::stepPlatformer(body, intent, heroTuning(icy), world, platforms);
-    }
+    const bool icy = body.grounded && _floorTile(m_map, body.box) == 'I';
+    const gamelib::core::PlatformerStep step = gamelib::core::stepPlatformer(body, intent, heroTuning(icy), world, platforms);
     if (step.events.jumped) {
         m_events.push({.kind = EventKind::Jump, .at = body.box.bottomCenter()});
     }
     if (step.events.landed) {
         m_events.push({.kind = EventKind::Land, .at = body.box.bottomCenter()});
+    }
+    if (step.events.slid) {
+        m_events.push({.kind = EventKind::Slide, .at = body.box.bottomCenter(), .value = body.facing});
     }
 
     // Conveyors carry what stands on them; a gust pushes.
@@ -165,8 +107,7 @@ void Session::stepHero(const Input& input)
         push.x += m_wind;
     }
     if (push.x != 0.0f) {
-        const gamelib::core::BoxMove moved = gamelib::core::moveBox(body.box, push, world);
-        body.box = moved.box;
+        body.box = gamelib::core::moveBox(body.box, push, world).box;
     }
     if (body.grounded) {
         h.walked += std::abs(body.box.x - xBefore);
@@ -204,16 +145,14 @@ void Session::fire(const Input& in)
     };
 
     if (h.weapon == Weapon::Buster) {
-        // Charging: held fire builds up; the release fires what it reached.
-        if (in.shootHeld && !h.sliding) {
-            ++h.charge;
-            if (h.charge == kChargeFullTicks) {
+        // Each press fires; holding charges (not while sliding), letting go
+        // fires what the charge reached.
+        if (!body.sliding) {
+            const gamelib::core::ChargeStep charge = h.charge.update(in.shootHeld);
+            if (charge.reached == h.charge.levels()) {
                 m_events.push({.kind = EventKind::ChargeReady, .at = body.box.center()});
             }
-        } else if (!in.shootHeld && h.charge > 0) {
-            const int level = h.charge >= kChargeFullTicks ? 2 : (h.charge >= kChargeHalfTicks ? 1 : 0);
-            h.charge = 0;
-            if (level > 0 && !h.sliding) {
+            if (const int level = charge.released.value_or(0); level > 0) {
                 Shot s = shot({dir * kBusterSpeed, 0.0f}, level == 2 ? Vec2{20.0f, 14.0f} : Vec2{11.0f, 9.0f});
                 s.extra.charge = level;
                 s.pierce = level == 2;
@@ -223,8 +162,7 @@ void Session::fire(const Input& in)
                 }
             }
         }
-        if (in.shootPressed && !h.sliding) {
-            h.charge = 1;
+        if (in.shootPressed && !body.sliding) {
             if (m_shots.spawn(shot({dir * kBusterSpeed, 0.0f}, {7.0f, 6.0f}), weaponInfo(Weapon::Buster).maxShots) != 0) {
                 h.shootTicks = kShootPoseTicks;
                 m_events.push({.kind = EventKind::Shoot, .at = hand, .value = 0, .weapon = Weapon::Buster});
@@ -233,8 +171,7 @@ void Session::fire(const Input& in)
         return;
     }
 
-    h.charge = 0;
-    if (!in.shootPressed || h.sliding) {
+    if (!in.shootPressed || body.sliding) {
         return;
     }
     const WeaponInfo& info = weaponInfo(h.weapon);

@@ -207,6 +207,9 @@ void Session::load()
         }
     }
     m_doorOpen.assign(m_doors.size(), 0);
+    for (const Room& r : m_rooms) {
+        m_roomBounds.push_back(r.bounds);
+    }
 
     Vec2 feet = start;
     int room = startRoom;
@@ -227,8 +230,7 @@ void Session::placeHero(const Vec2 feet, const int room)
     h.body.grounded = true;
     h.previous = h.body.box;
     h.vulnerable = gamelib::core::Vulnerable{h.body.box, 0, kHurtInvincibleTicks, kHurtStunTicks};
-    h.sliding = false;
-    h.charge = 0;
+    h.charge.reset();
     h.shootTicks = 0;
     m_room = room;
 }
@@ -340,17 +342,14 @@ float Session::doorOpen(const int door) const
 
 float Session::scrollProgress() const
 {
-    if (m_phase == Phase::Scroll || (m_phase == Phase::Gate && m_gateStep == 2)) {
-        return std::clamp(static_cast<float>(m_phaseTicks) / static_cast<float>(kScrollTicks), 0.0f, 1.0f);
-    }
-    return 0.0f;
+    return m_scroll ? m_scroll->progress() : 0.0f;
 }
 
 void Session::selectWeapon(const Weapon weapon)
 {
     if (owns(weapon) && weapon != m_hero.weapon) {
         m_hero.weapon = weapon;
-        m_hero.charge = 0;
+        m_hero.charge.reset();
         m_shots.removeIf([](const Shot& s) { return !s.extra.enemy; });
         m_events.push({.kind = EventKind::WeaponSwitch, .at = m_hero.body.box.center(), .weapon = weapon});
     }
@@ -487,38 +486,17 @@ void Session::playTick(const Input& input)
 void Session::checkRooms()
 {
     const Rect box = m_hero.body.box;
-    const Vec2 center = box.center();
-    const Room& current = room();
-    if (current.bounds.contains(center)) {
-        return;
-    }
-    const int next = roomAt(center);
-    if (next < 0 || next == m_room) {
-        if (box.top() > current.bounds.bottom()) {
+    m_scroll = gamelib::core::RoomScroll::start(m_roomBounds, m_room, box, kScrollTicks, m_phase == Phase::Gate ? 20.0f : 12.0f);
+    if (!m_scroll) {
+        if (!room().bounds.contains(box.center()) && box.top() > room().bounds.bottom()) {
             die(); // fell out of the room with nothing below
         }
         return;
     }
-    const Rect& to = m_rooms[static_cast<std::size_t>(next)].bounds;
-    Vec2 push;
-    if (to.left() >= current.bounds.right() - 0.5f) {
-        push = {m_phase == Phase::Gate ? 30.0f : 22.0f, 0.0f};
-    } else if (to.right() <= current.bounds.left() + 0.5f) {
-        push = {-22.0f, 0.0f};
-    } else if (to.bottom() <= current.bounds.top() + 0.5f) {
-        push = {0.0f, -30.0f};
-    } else {
-        push = {0.0f, 26.0f};
-    }
-    m_scrollFrom = m_room;
-    m_scrollTo = next;
-    m_scrollHeroFrom = box.position();
-    m_scrollHeroTo = box.position() + push;
     m_enemies = {};
     m_shots.clear();
     m_warnings.clear();
-    m_hero.charge = std::min(m_hero.charge, kChargeFullTicks);
-    m_events.push({.kind = EventKind::Scroll, .at = center});
+    m_events.push({.kind = EventKind::Scroll, .at = box.center()});
     if (m_phase == Phase::Gate) {
         m_gateStep = 2;
     } else {
@@ -529,36 +507,34 @@ void Session::checkRooms()
 
 void Session::scrollTick()
 {
-    const float t = std::min(static_cast<float>(m_phaseTicks) / static_cast<float>(kScrollTicks), 1.0f);
-    const Vec2 p = gamelib::core::lerp(m_scrollHeroFrom, m_scrollHeroTo, t);
-    m_hero.body.box.x = p.x;
-    m_hero.body.box.y = p.y;
-    if (m_phaseTicks < kScrollTicks) {
+    if (!m_scroll || !m_scroll->tick(m_hero.body.box)) {
         return;
     }
-    enterRoom(m_scrollTo);
+    const int to = m_scroll->to;
+    m_scroll.reset();
+    enterRoom(to);
     m_phaseTicks = 0;
     if (m_phase == Phase::Gate) {
         m_gateStep = 3;
         return;
     }
     m_phase = Phase::Playing;
-    // Falling on keeps its speed; anything else starts still.
+    // Falling on keeps its speed; a jump up into the room above keeps a little.
     if (!m_hero.body.climbing && m_hero.body.velocity.y < 0.0f) {
         m_hero.body.velocity.y = std::min(m_hero.body.velocity.y, -2.0f);
     }
 }
-
 void Session::startGate(const int door)
 {
     m_phase = Phase::Gate;
     m_phaseTicks = 0;
     m_gate = door;
     m_gateStep = 0;
-    m_hero.sliding = false;
+    m_hero.body.sliding = false;
+    m_hero.body.slideLeft = 0;
     m_hero.body.box = Rect::fromBottomCenter(m_hero.body.box.bottomCenter(), kHeroSize);
     m_hero.body.velocity = {};
-    m_hero.charge = 0;
+    m_hero.charge.reset();
     m_shots.clear();
     m_events.push({.kind = EventKind::DoorOpen, .at = gamelib::core::cellRect(m_doors[static_cast<std::size_t>(door)].cells.front(), kTile).center()});
 }
@@ -836,9 +812,6 @@ void Session::hurtHero(const int damage, const Rect& source)
         die();
         return;
     }
-    if (h.sliding && canStand()) {
-        endSlide();
-    }
     h.body.climbing = false;
     const Vec2 kb = gamelib::core::knockbackAway(source, h.body.box, kKnockbackSpeed, 0.0f, -h.body.facing);
     h.body.velocity.x = kb.x;
@@ -846,7 +819,7 @@ void Session::hurtHero(const int damage, const Rect& source)
         h.body.velocity.y = 0.0f;
     }
     h.body.lockTicks = kHurtStunTicks;
-    h.charge = 0;
+    h.charge.reset();
     h.hurtTicks = kHurtStunTicks;
 }
 

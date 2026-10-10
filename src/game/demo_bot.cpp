@@ -209,7 +209,7 @@ Input DemoBot::next(const Session& session)
     if (m_shootCooldown > 0) {
         --m_shootCooldown;
     }
-    if (target && m_shootCooldown == 0 && !hero.sliding) {
+    if (target && m_shootCooldown == 0 && !hero.body.sliding) {
         input.shootPressed = true;
         input.shootHeld = true;
         m_shootCooldown = 9;

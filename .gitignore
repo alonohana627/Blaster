@@ -1,0 +1,18 @@
+# Build output (every preset lives under build/<preset>)
+build/
+out/
+
+# clangd index and editor folders
+.cache/
+.idea/
+.vs/
+.vscode/
+
+# Personal CMake presets (e.g. FETCHCONTENT_SOURCE_DIR_GAMELIB overrides)
+CMakeUserPresets.json
+
+# Temporary files (atomic writes use <file>.tmp)
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db

@@ -25,8 +25,4 @@ enum class Action : std::uint8_t { Left, Right, Up, Down, Jump, Shoot, Slide, We
 // The rules' input for this tick from the held and pressed actions.
 [[nodiscard]] game::Input readInput(const gamelib::platform::ActionMap& actions, const gamelib::platform::InputState& input);
 
-// The action a key or button is bound to (Action::Count when none).
-[[nodiscard]] Action actionOf(const gamelib::platform::ActionMap& actions, gamelib::platform::Key key);
-[[nodiscard]] Action actionOf(const gamelib::platform::ActionMap& actions, gamelib::platform::GamepadButton button);
-
 } // namespace blaster::app

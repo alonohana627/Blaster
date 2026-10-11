@@ -461,15 +461,14 @@ void Session::shotsHitEnemies()
             continue;
         }
         if (e.vulnerable.guarded()) {
-            const Rect box = e.body.box;
-            m_shots.removeIf([&](const Shot& s) {
-                if (s.extra.enemy || !gamelib::core::overlaps(s.box(), box)) {
-                    return false;
+            // A shield bounces the hero's shots off (reported for the spark and the tink).
+            const std::size_t before = m_shots.removed().size();
+            if (m_shots.deflectFrom(e.vulnerable) > 0) {
+                for (const auto& r : m_shots.removed().subspan(before)) {
+                    m_events.push({.kind = EventKind::Deflect, .at = r.projectile.position,
+                                   .value = r.projectile.velocity.x < 0.0f ? -1 : 1, .weapon = r.projectile.extra.weapon});
                 }
-                m_events.push({.kind = EventKind::Deflect, .at = s.position, .value = s.velocity.x < 0.0f ? -1 : 1,
-                               .weapon = s.extra.weapon});
-                return true;
-            });
+            }
             continue;
         }
         while (const auto hit = m_shots.hitTest(e.vulnerable)) {

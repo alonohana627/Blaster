@@ -519,12 +519,8 @@ void Session::scrollTick()
     m_scroll.reset();
     enterRoom(to);
     // Coming up through the floor of a room: hold on to the ladder there.
-    gamelib::core::PlatformerBody& body = m_hero.body;
-    if (up && !body.climbing && gamelib::core::probeContacts(body.box, tileWorld()).climb != gamelib::core::TileShape::Empty) {
-        body.climbing = true;
-        body.velocity = {};
-        const float column = std::floor(body.box.center().x / kTile);
-        body.box.x = (column + 0.5f) * kTile - body.box.width / 2.0f;
+    if (up) {
+        (void)gamelib::core::grabLadder(m_hero.body, heroTuning(false), tileWorld());
     }
     m_phaseTicks = 0;
     if (m_phase == Phase::Gate) {

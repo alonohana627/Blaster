@@ -56,16 +56,4 @@ game::Input readInput(const gamelib::platform::ActionMap& actions, const gamelib
     return in;
 }
 
-Action actionOf(const gamelib::platform::ActionMap& actions, const Key key)
-{
-    const ActionId id = actions.actionOn(key);
-    return id == gamelib::platform::kNoAction ? Action::Count : static_cast<Action>(id);
-}
-
-Action actionOf(const gamelib::platform::ActionMap& actions, const GamepadButton button)
-{
-    const ActionId id = actions.actionOn(button);
-    return id == gamelib::platform::kNoAction ? Action::Count : static_cast<Action>(id);
-}
-
 } // namespace blaster::app

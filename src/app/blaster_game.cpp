@@ -50,10 +50,8 @@ gamelib::ui::MenuStyle _menuStyle()
             .highlight = srgb(0xFFE14D),
             .selection = srgb(0x23305A),
             .dim = kTextDim,
-            .titlePixel = 11.0f,
-            .itemPixel = 5.0f,
-            .itemHeight = 60.0f,
-            .padding = 44.0f,
+            .titlePixel = 13.0f,
+            .itemPixel = 6.0f,
             .glowWidth = 24.0f};
 }
 
@@ -62,13 +60,10 @@ game::Session _demoSession()
     return game::Session{game::StageId::Intro, game::Carry::fresh(9, 0, 0)};
 }
 
-std::optional<BlasterGame::Command> _command(const std::optional<gamelib::ui::MenuInput> input)
+BlasterGame::Command _command(const gamelib::ui::MenuInput input)
 {
     using C = BlasterGame::Command;
-    if (!input) {
-        return std::nullopt;
-    }
-    switch (*input) {
+    switch (input) {
     case gamelib::ui::MenuInput::Up: return C::Up;
     case gamelib::ui::MenuInput::Down: return C::Down;
     case gamelib::ui::MenuInput::Left: return C::Left;
@@ -76,9 +71,22 @@ std::optional<BlasterGame::Command> _command(const std::optional<gamelib::ui::Me
     case gamelib::ui::MenuInput::Confirm: return C::Confirm;
     case gamelib::ui::MenuInput::Back: return C::Back;
     }
-    return std::nullopt;
+    return C::None;
 }
 
+// The player's own keys drive the stage select and the weapon list too.
+const gamelib::ui::MenuBindings& _menuBindings()
+{
+    static const gamelib::ui::MenuBindings bindings{
+        .up = {actionId(Action::Up)},
+        .down = {actionId(Action::Down)},
+        .left = {actionId(Action::Left)},
+        .right = {actionId(Action::Right)},
+        .confirm = {actionId(Action::Jump), actionId(Action::Shoot)},
+        .back = {actionId(Action::Pause)},
+    };
+    return bindings;
+}
 std::string _stageTitle(const game::StageId id)
 {
     return std::string{game::stage(id).name};
@@ -133,6 +141,7 @@ BlasterGame::BlasterGame(gamelib::app::App& app, ProfileFile profile, const bool
                        .changed = gamelib::app::MenuSound{m_sfx.id(Sfx::MenuMove)},
                        .selected = gamelib::app::MenuSound{m_sfx.id(Sfx::MenuSelect)},
                        .back = gamelib::app::MenuSound{m_sfx.id(Sfx::MenuBack)}});
+    m_menus.hostControls(m_profile.value().game.actions);
     m_profile.save(); // a missing file is written with the defaults, so it can be found and edited
     gamelib::app::applySettings(app, m_profile.value().settings);
     m_music.play(app.audio(), Tune::Title, 0.6f);
@@ -171,32 +180,9 @@ void BlasterGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEven
         }
         return;
     }
-    if (m_overlay == Overlay::Controls && m_controls) {
-        const gamelib::ui::BindingList::Result r = m_controls->handle(event);
-        gamelib::app::playMenuSound(app.sounds(), m_menus.sounds(), r.feedback);
-        if (r.changed) {
-            save();
-        }
-        if (r.closed) {
-            m_overlay = Overlay::None;
-            m_controls.reset();
-            app.input().releaseAll();
-        }
-        return;
-    }
     if (m_overlay == Overlay::Weapons) {
-        if (event.pressed) {
-            std::optional<Command> c = _command(gamelib::ui::menuInput(event.key));
-            const Action a = actionOf(progress().actions, event.key);
-            if (!c && (a == Action::Jump || a == Action::Shoot)) {
-                c = Command::Confirm;
-            }
-            if (!c && a == Action::Pause) {
-                c = Command::Back;
-            }
-            if (c) {
-                weaponsCommand(app, *c);
-            }
+        if (const auto input = gamelib::ui::menuInput(progress().actions, event, _menuBindings())) {
+            weaponsCommand(app, _command(*input));
         }
         return;
     }
@@ -205,22 +191,10 @@ void BlasterGame::onKey(gamelib::app::App& app, const gamelib::platform::KeyEven
     if (!event.pressed || result.from != ArcadeScreen::Playing || !m_menus.is(ArcadeScreen::Playing)) {
         return;
     }
-    std::optional<Command> c = _command(gamelib::ui::menuInput(event.key));
-    const Action a = actionOf(progress().actions, event.key);
-    switch (a) {
-    case Action::Up: c = Command::Up; break;
-    case Action::Down: c = Command::Down; break;
-    case Action::Left: c = Command::Left; break;
-    case Action::Right: c = Command::Right; break;
-    case Action::Jump:
-    case Action::Shoot: c = Command::Confirm; break;
-    default: break;
-    }
-    if (c) {
-        command(app, *c);
+    if (const auto input = gamelib::ui::menuInput(progress().actions, event, _menuBindings())) {
+        command(app, _command(*input));
     }
 }
-
 void BlasterGame::onGamepad(gamelib::app::App& app, const gamelib::platform::GamepadEvent& event)
 {
     if (m_demoMode) {
@@ -230,28 +204,9 @@ void BlasterGame::onGamepad(gamelib::app::App& app, const gamelib::platform::Gam
         }
         return;
     }
-    if (m_overlay == Overlay::Controls && m_controls) {
-        const gamelib::ui::BindingList::Result r = m_controls->handle(event);
-        gamelib::app::playMenuSound(app.sounds(), m_menus.sounds(), r.feedback);
-        if (r.changed) {
-            save();
-        }
-        if (r.closed) {
-            m_overlay = Overlay::None;
-            m_controls.reset();
-            app.input().releaseAll();
-        }
-        return;
-    }
     if (m_overlay == Overlay::Weapons) {
-        if (event.pressed) {
-            std::optional<Command> c = _command(gamelib::ui::menuInput(event.button));
-            if (event.button == GamepadButton::Start) {
-                c = Command::Back;
-            }
-            if (c) {
-                weaponsCommand(app, *c);
-            }
+        if (const auto input = gamelib::ui::menuInput(progress().actions, event, _menuBindings())) {
+            weaponsCommand(app, _command(*input));
         }
         return;
     }
@@ -260,13 +215,10 @@ void BlasterGame::onGamepad(gamelib::app::App& app, const gamelib::platform::Gam
     if (!event.pressed || result.from != ArcadeScreen::Playing || !m_menus.is(ArcadeScreen::Playing)) {
         return;
     }
-    if (const std::optional<Command> c = _command(gamelib::ui::menuInput(event.button))) {
-        command(app, *c);
-    } else if (event.button == GamepadButton::X) {
-        command(app, Command::Confirm);
+    if (const auto input = gamelib::ui::menuInput(progress().actions, event, _menuBindings())) {
+        command(app, _command(*input));
     }
 }
-
 void BlasterGame::handleResult(gamelib::app::App& app, const gamelib::app::ArcadeResult& result)
 {
     if (result.changed) {
@@ -321,7 +273,6 @@ void BlasterGame::handleResult(gamelib::app::App& app, const gamelib::app::Arcad
         save();
         app.requestQuit();
         break;
-    case ArcadeAction::Controls: openControls(app); break;
     case ArcadeAction::Game:
         if (result.command == kWeaponsCommand && m_mode == Mode::Stage && m_session) {
             openWeapons(app);
@@ -331,15 +282,9 @@ void BlasterGame::handleResult(gamelib::app::App& app, const gamelib::app::Arcad
         }
         break;
     case ArcadeAction::Resume:
+    case ArcadeAction::Controls: // hosted by the menus (hostControls)
     case ArcadeAction::None: break;
     }
-}
-
-void BlasterGame::openControls(gamelib::app::App& app)
-{
-    m_controls.emplace(progress().actions, "CONTROLS");
-    m_overlay = Overlay::Controls;
-    app.input().releaseAll();
 }
 
 std::vector<int> BlasterGame::weaponRows() const
@@ -508,7 +453,6 @@ void BlasterGame::startStage(gamelib::app::App& app, const game::StageId stage, 
         line = "FROM THE CHECKPOINT";
     }
     m_card = Card{.title = _stageTitle(stage), .line = line};
-    m_charging = false;
     m_sfx.stopLoop(app.audio(), Sfx::Charge);
     m_transition.start({.kind = fromSelect ? gamelib::ui::TransitionKind::Iris : gamelib::ui::TransitionKind::Fade,
                         .color = kInk, .coverSeconds = fromSelect ? 0.5f : 0.35f, .holdSeconds = fromSelect ? 1.6f : 0.9f,
@@ -850,12 +794,7 @@ void BlasterGame::updateLoops(gamelib::app::App& app)
         charging = charge.heldTicks() > game::kChargeHalfTicks / 2;
         level = charge.progress();
     }
-    if (charging) {
-        m_sfx.loop(app.audio(), Sfx::Charge, 0.55f, 0.8f + 0.7f * level);
-    } else if (m_charging) {
-        m_sfx.stopLoop(app.audio(), Sfx::Charge);
-    }
-    m_charging = charging;
+    m_sfx.loopWhile(app.audio(), Sfx::Charge, charging, 0.55f, 0.8f + 0.7f * level);
 }
 
 bool BlasterGame::showsStage() const
@@ -911,9 +850,9 @@ void BlasterGame::draw(gamelib::app::App& app, gamelib::draw::DrawList& list, co
     drawCard(list);
     if (!m_demoMode) {
         drawMenus(list);
-        if (m_overlay == Overlay::Controls && m_controls) {
+        if (const gamelib::ui::BindingList* controls = m_menus.controls()) {
             list.setLayer(gamelib::draw::layers::Hud + 20);
-            gamelib::ui::drawBindingList(list, *m_controls, m_canvas, _menuStyle(), 11);
+            gamelib::ui::drawBindingList(list, *controls, m_canvas, _menuStyle(), 11);
         }
     }
 }
@@ -1195,7 +1134,7 @@ void BlasterGame::drawCard(gamelib::draw::DrawList& list) const
 void BlasterGame::drawMenus(gamelib::draw::DrawList& list) const
 {
     const gamelib::ui::Menu* menu = m_menus.menu();
-    if (menu == nullptr || m_overlay == Overlay::Controls) {
+    if (menu == nullptr || m_menus.controls() != nullptr) {
         return;
     }
     std::string subtitle;

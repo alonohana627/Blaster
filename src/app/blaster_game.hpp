@@ -55,7 +55,7 @@ public:
 
 private:
     enum class Mode { Select, Stage, WeaponGet, Ending };
-    enum class Overlay { None, Weapons, Controls };
+    enum class Overlay { None, Weapons };
 
     // The demo: the bot playing the intro stage.
     struct DemoRun {
@@ -74,7 +74,6 @@ private:
     void selectCommand(gamelib::app::App& app, Command command);
     void weaponsCommand(gamelib::app::App& app, Command command);
     void openWeapons(gamelib::app::App& app);
-    void openControls(gamelib::app::App& app);
     void enterSelect(gamelib::app::App& app);
     void startStage(gamelib::app::App& app, game::StageId stage, const game::Carry& carry, bool fromSelect);
     void stageTick(gamelib::app::App& app);
@@ -110,7 +109,6 @@ private:
     gamelib::core::Size m_canvas;
     Mode m_mode = Mode::Select;
     Overlay m_overlay = Overlay::None;
-    std::optional<gamelib::ui::BindingList> m_controls;
     int m_weaponCursor = 0;
     int m_cursor = 0; // the stage select: 0..5 the robot masters, 6 the fortress
 
@@ -130,7 +128,6 @@ private:
     gamelib::app::DevStart m_dev;
     int m_devStage = -1;
     gamelib::core::Playback<game::Input> m_replay;
-    bool m_charging = false;
 
     // The weapon-get scene and the ending.
     game::BossKind m_got = game::BossKind::Grinder;
